@@ -237,16 +237,27 @@ public class SwiftMobileScannerPlugin: NSObject, FlutterPlugin {
     
     /// Analyzes a single image
     private func analyzeImage(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
-        let uiImage = UIImage(contentsOfFile: call.arguments as? String ?? "")
-        
-        if (uiImage == nil) {
+        guard let uiImage = UIImage(contentsOfFile: call.arguments as? String ?? "") else {
             result(FlutterError(code: "MobileScanner",
                                 message: "No image found in analyzeImage!",
                                 details: nil))
             return
         }
+        guard let jpegData = uiImage.jpegData(compressionQuality: 0.8) else {
+            result(FlutterError(code: "MobileScanner",
+                                message: "analyzeImage convert image to jpeg failed1",
+                                details: nil))
+            return
+        }
 
-        mobileScanner.analyzeImage(image: uiImage!, position: AVCaptureDevice.Position.back, callback: { [self] barcodes, error in
+        guard let jpegImage = UIImage(data: jpegData) else {
+            result(FlutterError(code: "MobileScanner",
+                                message: "analyzeImage convert image to jpeg failed2",
+                                details: nil))
+            return
+        }
+
+        mobileScanner.analyzeImage(image: jpegImage, position: AVCaptureDevice.Position.back, callback: { [self] barcodes, error in
             if error == nil && barcodes != nil && !barcodes!.isEmpty {
                 let barcodesMap: [Any?] = barcodes!.compactMap { barcode in barcode.data }
                 let event: [String: Any?] = ["name": "barcode", "data": barcodesMap]
