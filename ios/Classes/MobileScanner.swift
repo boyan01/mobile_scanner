@@ -56,9 +56,9 @@ public class MobileScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
     var standardZoomFactor: CGFloat = 1
 
     private var nextScanTime = 0.0
-    
+
     private var imagesCurrentlyBeingProcessed = false
-    
+
     public var timeoutSeconds: Double = 0
 
     init(registry: FlutterTextureRegistry?, mobileScannerCallback: @escaping MobileScannerCallback, torchModeChangeCallback: @escaping TorchModeChangeCallback, zoomScaleChangeCallback: @escaping ZoomScaleChangeCallback) {
@@ -80,7 +80,7 @@ public class MobileScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
                                                     position: position) {
                 return device
             }
-            
+
             // Find the built-in Dual-Wide Camera, if it exists.
             if let device = AVCaptureDevice.default(.builtInDualWideCamera,
                                                     for: .video,
@@ -88,24 +88,24 @@ public class MobileScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
                 return device
             }
         }
-        
+
         // Find the built-in Dual Camera, if it exists.
         if let device = AVCaptureDevice.default(.builtInDualCamera,
                                                 for: .video,
                                                 position: position) {
             return device
         }
-        
+
         // Find the built-in Wide-Angle Camera, if it exists.
         if let device = AVCaptureDevice.default(.builtInWideAngleCamera,
                                                 for: .video,
                                                 position: position) {
             return device
         }
-        
+
         return nil
     }
-    
+
     /// Check if we already have camera permission.
     func checkPermission() -> Int {
         let status = AVCaptureDevice.authorizationStatus(for: .video)
@@ -132,15 +132,15 @@ public class MobileScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
         }
         latestBuffer = imageBuffer
         registry?.textureFrameAvailable(textureId)
-        
+
         let currentTime = Date().timeIntervalSince1970
         let eligibleForScan = currentTime > nextScanTime && !imagesCurrentlyBeingProcessed
-        
+
         if ((detectionSpeed == DetectionSpeed.normal || detectionSpeed == DetectionSpeed.noDuplicates) && eligibleForScan || detectionSpeed == DetectionSpeed.unrestricted) {
 
             nextScanTime = currentTime + timeoutSeconds
             imagesCurrentlyBeingProcessed = true
-            
+
             let ciImage = latestBuffer.image
 
             let image = VisionImage(image: ciImage)
@@ -152,12 +152,12 @@ public class MobileScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
 
             scanner.process(image) { [self] barcodes, error in
                 imagesCurrentlyBeingProcessed = false
-                
+
                 if (detectionSpeed == DetectionSpeed.noDuplicates) {
                     let newScannedBarcodes = barcodes?.compactMap({ barcode in
                         return barcode.rawValue
                     }).sorted()
-                    
+
                     if (error == nil && barcodesString != nil && newScannedBarcodes != nil && barcodesString!.elementsEqual(newScannedBarcodes!)) {
                         return
                     } else if (newScannedBarcodes?.isEmpty == false) {
@@ -226,7 +226,8 @@ public class MobileScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
             throw MobileScannerError.cameraError(error)
         }
 
-        captureSession.sessionPreset = AVCaptureSession.Preset.photo
+        captureSession.sessionPreset = .hd1920x1080
+
         // Add video output.
         let videoOutput = AVCaptureVideoDataOutput()
 
@@ -263,7 +264,7 @@ public class MobileScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
                     }
                 }
             }
-            
+
             DispatchQueue.main.async {
                 do {
                     try self.resetScale()
@@ -280,7 +281,7 @@ public class MobileScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
                 let dimensions = CMVideoFormatDescriptionGetDimensions(
                     device.activeFormat.formatDescription)
                 let hasTorch = device.hasTorch
-                
+
                 completion(
                     MobileScannerStartParameters(
                         width: Double(dimensions.height),
@@ -289,10 +290,10 @@ public class MobileScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
                         textureId: self.textureId ?? 0
                     )
                 )
-                
+
                 return
             }
-            
+
             completion(MobileScannerStartParameters())
         }
     }
@@ -326,11 +327,11 @@ public class MobileScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
         guard let device = self.device else {
             return
         }
-        
+
         if (!device.hasTorch || !device.isTorchAvailable || !device.isTorchModeSupported(torch)) {
             return
         }
-        
+
         if (device.torchMode != torch) {
             try device.lockForConfiguration()
             device.torchMode = torch

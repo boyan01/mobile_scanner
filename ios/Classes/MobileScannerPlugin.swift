@@ -63,7 +63,7 @@ public class MobileScannerPlugin: NSObject, FlutterPlugin {
         self.barcodeHandler = barcodeHandler
         super.init()
     }
-    
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "dev.steenbakker.mobile_scanner/scanner/method", binaryMessenger: registrar.messenger())
         let instance = MobileScannerPlugin(barcodeHandler: BarcodeHandler(registrar: registrar), registry: registrar.textures())
@@ -236,8 +236,13 @@ public class MobileScannerPlugin: NSObject, FlutterPlugin {
     
     /// Analyzes a single image.
     private func analyzeImage(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
-        let uiImage = UIImage(contentsOfFile: call.arguments as? String ?? "")
-        
+        guard let uiImage = UIImage(contentsOfFile: call.arguments as? String ?? "") else {
+            result(FlutterError(code: "MobileScanner",
+                                message: "No image found in analyzeImage!",
+                                details: nil))
+            return
+        }
+
         if (uiImage == nil) {
             result(FlutterError(code: "MobileScanner",
                                 message: "No image found in analyzeImage!",
@@ -245,17 +250,17 @@ public class MobileScannerPlugin: NSObject, FlutterPlugin {
             return
         }
 
-        mobileScanner.analyzeImage(image: uiImage!, position: AVCaptureDevice.Position.back, callback: { [self] barcodes, error in
+        mobileScanner.analyzeImage(image: uiImage, position: AVCaptureDevice.Position.back, callback: { [self] barcodes, error in
             if error != nil {
                 barcodeHandler.publishEvent(["name": "error", "message": error?.localizedDescription])
-                
+
                 DispatchQueue.main.async {
                     result(false)
                 }
-                
+
                 return
             }
-            
+
             if (barcodes == nil || barcodes!.isEmpty) {
                 DispatchQueue.main.async {
                     result(false)
@@ -264,7 +269,7 @@ public class MobileScannerPlugin: NSObject, FlutterPlugin {
                 let barcodesMap: [Any?] = barcodes!.compactMap { barcode in barcode.data }
                 let event: [String: Any?] = ["name": "barcode", "data": barcodesMap]
                 barcodeHandler.publishEvent(event)
-                
+
                 DispatchQueue.main.async {
                     result(true)
                 }
